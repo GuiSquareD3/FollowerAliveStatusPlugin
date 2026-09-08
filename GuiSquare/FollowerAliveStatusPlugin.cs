@@ -1,94 +1,98 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Windows.Forms;
 using Turbo.Plugins.Default;
 
 namespace Turbo.Plugins.GuiSquare
 {
     /// <summary>
-    /// Etat de vie du follower (suiveur) + compteur de morts DU FOLLOWER uniquement.
+    /// Follower life state, plus a counter of FOLLOWER deaths only.
     ///
-    ///   VERT  = follower vivant
-    ///   ROUGE = follower mort (au sol)
-    ///   GRIS  = aucun follower engage / etat inconnu (chargement, menu, partie multi, hero mort...)
+    ///   GREEN = follower alive
+    ///   RED   = follower dead (down on the ground)
+    ///   GREY  = no follower hired, or state unknown (loading, menu, multiplayer, hero dead...)
     ///
-    /// Le compteur ne s'incremente QUE sur une transition "vivant -> mort" confirmee du follower.
-    /// La mort du heros, les ecrans de chargement et les changements de zone ne comptent jamais.
+    /// The counter is stepped up ONLY on a confirmed "alive -> dead" transition of the follower.
+    /// Your own death, loading screens and zone changes never count.
     /// </summary>
 
     public enum FollowerStatusIconPosition
     {
-        UnderPortrait,          // sous le portrait du heros (haut gauche)
-        LeftOfHealthGlobe,      // a gauche du globe de vie (bas gauche)
-        RightOfResourceGlobe,   // a droite du globe de ressource (bas droite)
-        AboveSkillBar,          // au-dessus de la barre de competences (bas centre)
-        UnderMinimapClock,      // sous l'horloge / la minimap (haut droite)
-        BelowRbhSessionPanel,   // sous le panneau de session RBH (qui demarre au coin haut-gauche de la minimap)
-        Custom                  // position libre : CustomX / CustomY (ratio d'ecran 0..1)
+        UnderPortrait,          // below the hero portrait (top left)
+        LeftOfHealthGlobe,      // left of the health globe (bottom left)
+        RightOfResourceGlobe,   // right of the resource globe (bottom right)
+        AboveSkillBar,          // above the skill bar (bottom centre)
+        UnderMinimapClock,      // below the minimap clock (top right)
+        BelowRbhSessionPanel,   // below the RBH session panel (which starts at the minimap's top-left corner)
+        Custom                  // free placement: CustomX / CustomY (screen ratio 0..1)
     }
 
     public enum FollowerStatusIconStyle
     {
-        Skull,      // tete de mort coloree selon l'etat
-        Dot,        // pastille ronde pleine
-        Portrait    // tete du follower + petite pastille d'etat
+        Skull,      // skull tinted with the state colour
+        Dot,        // plain filled circle
+        Portrait    // follower's face plus a small state dot
     }
 
     public enum FollowerLifeState
     {
-        Unknown,      // gris : on ne sait pas encore (chargement, transition, hero mort)
-        NoFollower,   // gris : aucun follower engage (ou partie multijoueur)
-        Alive,        // vert
-        Dead          // rouge
+        Unknown,      // grey: nothing confirmed yet (loading, transition, hero dead)
+        NoFollower,   // grey: no follower hired (or multiplayer game)
+        Alive,        // green
+        Dead          // red
     }
 
-    public class FollowerAliveStatusPlugin : BasePlugin, IInGameTopPainter, IAfterCollectHandler, INewAreaHandler
+    public class FollowerAliveStatusPlugin : BasePlugin, IInGameTopPainter, IAfterCollectHandler, INewAreaHandler, IMouseClickHandler, IMouseClickBlocker
     {
         // ---------------------------------------------------------------------
-        // Reglages d'affichage
+        // Display settings
         // ---------------------------------------------------------------------
 
         public FollowerStatusIconPosition Position { get; set; }
 
-        /// <summary>Position libre, en ratio de l'ecran (0..1). Utilise seulement si Position == Custom.</summary>
+        /// <summary>Free placement, as a screen ratio (0..1). Only used when Position == Custom.</summary>
         public float CustomX { get; set; }
         public float CustomY { get; set; }
 
-        /// <summary>Decalage additionnel applique a toutes les positions, en ratio de la hauteur d'ecran.</summary>
+        /// <summary>Extra offset applied to every position, as a ratio of screen height.</summary>
         public float OffsetX { get; set; }
         public float OffsetY { get; set; }
 
-        /// <summary>Taille de la pastille, en ratio de la hauteur d'ecran (0.026 = ~28px en 1080p).</summary>
+        /// <summary>Icon size, as a ratio of screen height (0.024 = about 26px at 1080p).</summary>
         public float IconSizeRatio { get; set; }
 
         public bool ShowIcon { get; set; }
         public bool ShowCounter { get; set; }
-        /// <summary>true = compteur a droite de la pastille, false = compteur dans la pastille.</summary>
+        /// <summary>true = counter to the right of the icon, false = counter inside the icon.</summary>
         public bool CounterOnRight { get; set; }
-        /// <summary>Masque le compteur tant qu'il vaut 0.</summary>
+        /// <summary>Hide the counter while it is still zero.</summary>
         public bool HideCounterWhenZero { get; set; }
 
         /// <summary>
-        /// Prefixe affiche devant le compteur, pour qu'un chiffre isole ne soit pas ambigu.
-        /// Defaut : "\u00D7" (signe multiplier), ce qui donne par exemple "x2".
-        /// Mettre "" pour n'afficher que le nombre.
+        /// Prefix drawn in front of the counter, so a lone digit is not ambiguous.
+        /// Default: "\u00D7" (multiplication sign), which reads as "x2".
+        /// Set to "" to show the bare number.
         /// </summary>
         public string CounterPrefix { get; set; }
-        /// <summary>Apparence de l'icone : tete de mort, pastille, ou portrait du follower.</summary>
+
+        /// <summary>Icon appearance: skull, plain dot, or the follower's portrait.</summary>
         public FollowerStatusIconStyle IconStyle { get; set; }
 
         /// <summary>
-        /// Hauteur du panneau de session RBH, en fraction de la hauteur de la minimap.
-        /// Utilise uniquement par Position = BelowRbhSessionPanel. RBH dessine son texte
-        /// a partir du coin haut-gauche de Hud.Render.MinimapUiElement, et sa hauteur depend
-        /// du nombre de lignes activees dans sa config : ajuste cette valeur si besoin.
+        /// Height of the RBH session panel, as a fraction of the minimap's height.
+        /// Only used by Position = BelowRbhSessionPanel. RBH draws its text from the
+        /// top-left corner of Hud.Render.MinimapUiElement downwards, and its height
+        /// depends on how many tracker lines are enabled in its config, so tune this
+        /// value if the icon overlaps the panel or floats too low.
         /// </summary>
         public float RbhPanelHeightRatio { get; set; }
-        /// <summary>Fait clignoter la pastille quand le follower est mort.</summary>
+
+        /// <summary>Pulse the icon while the follower is dead.</summary>
         public bool BlinkWhenDead { get; set; }
-        /// <summary>Cache l'icone quand la grande carte / carte d'acte est ouverte.</summary>
+        /// <summary>Hide the icon while the world map or act map is open.</summary>
         public bool HideOnMapModes { get; set; }
-        /// <summary>Cache completement l'icone quand aucun follower n'est engage (au lieu du gris).</summary>
+        /// <summary>Hide the icon entirely when no follower is hired, instead of showing grey.</summary>
         public bool HideWhenNoFollower { get; set; }
 
         public IBrush AliveBrush { get; set; }
@@ -97,72 +101,105 @@ namespace Turbo.Plugins.GuiSquare
         public IBrush UnknownBrush { get; set; }
         public IBrush BackgroundBrush { get; set; }
         public IBrush BorderBrush { get; set; }
-        /// <summary>Pinceau des evidements de la tete de mort (orbites, nez, dents).</summary>
+        /// <summary>Brush for the skull's hollows (eye sockets, nose, teeth).</summary>
         public IBrush IconDetailBrush { get; set; }
         public IFont CounterFont { get; set; }
         public IFont CounterDeadFont { get; set; }
         public IFont DebugFont { get; set; }
 
         // ---------------------------------------------------------------------
-        // Reglages de detection (anti faux positifs)
+        // Detection settings (false-positive guards)
         // ---------------------------------------------------------------------
 
-        /// <summary>SNO des acteurs "hireling" reellement engages (pas les PNJ de ville).</summary>
+        /// <summary>SNOs of the actually hired hirelings (not the town NPC versions).</summary>
         public HashSet<ActorSnoEnum> FollowerActorSnos { get; set; }
 
-        /// <summary>true (defaut) : on n'accepte QUE les SNO ci-dessus. false : on accepte aussi tout acteur ActorKind.Follower.</summary>
+        /// <summary>true (default): accept ONLY the SNOs above. false: also accept any ActorKind.Follower actor.</summary>
         public bool StrictSnoMatch { get; set; }
 
-        /// <summary>Considerer la disparition de l'acteur follower (dans le meme monde) comme une mort.</summary>
+        /// <summary>Treat the follower actor vanishing (in the same world) as a death.</summary>
         public bool TreatVanishAsDeath { get; set; }
 
-        /// <summary>Delai avant de conclure a une mort quand l'acteur a disparu (ms).</summary>
+        /// <summary>Delay before concluding a death once the actor has vanished (ms).</summary>
         public int VanishGraceMs { get; set; }
 
-        /// <summary>Periode aveugle apres un changement de zone / nouvelle partie (ms).</summary>
+        /// <summary>Blind window after a zone change or a new game (ms).</summary>
         public int AreaChangeGraceMs { get; set; }
 
-        /// <summary>Periode aveugle apres la mort / resurrection du heros (ms).</summary>
+        /// <summary>Blind window after the hero's death or resurrection (ms).</summary>
         public int PlayerDeathGraceMs { get; set; }
 
-        /// <summary>Ne rien detecter tant que le heros est mort.</summary>
+        /// <summary>Detect nothing at all while the hero is dead.</summary>
         public bool IgnoreWhilePlayerDead { get; set; }
 
-        /// <summary>Remettre le compteur a zero a chaque nouvelle partie.</summary>
+        /// <summary>
+        /// Reset the counter on every new game.
+        /// false (default): the counter survives quitting to the menu and starting another
+        /// game; it only goes back to zero when TurboHUD restarts, or on a reset click.
+        /// </summary>
         public bool ResetCounterOnNewGame { get; set; }
 
-        /// <summary>Annonce vocale a chaque mort du follower.</summary>
+        /// <summary>Allow resetting the counter by clicking the icon.</summary>
+        public bool ResetCounterOnClick { get; set; }
+
+        /// <summary>
+        /// Mouse button used for the reset. Default: left.
+        /// Set to MouseButtons.Middle for a modifier-free gesture with no risk of a
+        /// misclick, since the middle button is not bound to movement in Diablo III.
+        /// </summary>
+        public MouseButtons ResetClickButton { get; set; }
+
+        /// <summary>
+        /// Require Ctrl in addition to the click. true by default, because the icon sits
+        /// in the top-left area where you click to move, and an accidental reset would be
+        /// unrecoverable.
+        ///
+        /// Set it to false for a plain click:
+        ///     Hud.RunOnPlugin&lt;FollowerAliveStatusPlugin&gt;(p =&gt; p.ResetClickRequiresCtrl = false);
+        ///
+        /// The hover tooltip states whichever gesture is currently configured, and the
+        /// click is swallowed either way so the character never moves under the icon.
+        /// </summary>
+        public bool ResetClickRequiresCtrl { get; set; }
+
+        /// <summary>Spoken alert on every follower death.</summary>
         public bool SpeakOnDeath { get; set; }
         public string SpeakOnDeathText { get; set; }
 
-        /// <summary>Affiche un panneau de diagnostic (a activer une fois pour valider en jeu).</summary>
+        /// <summary>Show the diagnostic panel (turn it on once to validate in game).</summary>
         public bool DebugEnabled { get; set; }
         public float DebugX { get; set; }
         public float DebugY { get; set; }
 
         // ---------------------------------------------------------------------
-        // Etat expose (lecture seule en pratique)
+        // Exposed state (read-only in practice)
         // ---------------------------------------------------------------------
 
         public FollowerLifeState State { get; private set; }
         public int DeathCount { get; set; }
         public ActorSnoEnum CurrentFollowerSno { get; private set; }
-        public bool Armed { get; private set; } // on a vu le follower vivant => une mort est comptabilisable
+        public bool Armed { get; private set; } // the follower was seen alive => a death may now be counted
 
         // ---------------------------------------------------------------------
-        // Interne
+        // Internals
         // ---------------------------------------------------------------------
 
-        private DateTime _blockUntil;      // periode aveugle (transition / mort du heros)
-        private DateTime _lastSeenUtc;     // derniere fois que l'acteur follower a ete trouve
-        private DateTime _lastAliveUtc;    // derniere fois qu'il a ete vu vivant
+        private DateTime _blockUntil;      // blind window (transition / hero death)
+        private DateTime _lastSeenUtc;     // last time the follower actor was found
+        private DateTime _lastAliveUtc;    // last time it was seen alive
         private DateTime _lastDeathUtc;
         private uint _lastFollowerWorldId;
         private bool _playerWasDead;
         private bool _dbgHired;
         private readonly List<DateTime> _deathTimes = new List<DateTime>();
 
-        // diagnostic
+        // Clickable area of the icon. Written by the render thread, read by the click
+        // blocker thread (IMouseClickBlocker), so everything goes through this lock.
+        private readonly object _hitLock = new object();
+        private bool _hitValid;
+        private float _hitX, _hitY, _hitW, _hitH;
+
+        // diagnostics
         private string _dbgHp = "-";
         private string _dbgHpLine = "-";
         private string _dbgFlags = "-";
@@ -194,20 +231,28 @@ namespace Turbo.Plugins.GuiSquare
             ShowCounter = true;
             CounterOnRight = true;
             HideCounterWhenZero = false;
-            CounterPrefix = "\u00D7"; // echappe pour garder ce fichier source en pur ASCII
+            CounterPrefix = "\u00D7"; // escaped so this source file stays pure ASCII
             BlinkWhenDead = true;
             HideOnMapModes = true;
             HideWhenNoFollower = false;
 
             StrictSnoMatch = true;
-            // La mort est detectee de facon fiable par les PV (IActor.Hitpoints tombe a 0
-            // et l'acteur reste present), donc l'heuristique de disparition est inutile.
+            // Death is detected reliably through hitpoints (IActor.Hitpoints drops to 0
+            // while the actor stays present), so the vanish heuristic is not needed.
             TreatVanishAsDeath = false;
             VanishGraceMs = 2500;
-            AreaChangeGraceMs = 4000;
-            PlayerDeathGraceMs = 3000;
+            // Blind windows are deliberately short. The real guard against miscounting is
+            // the Armed latch (a death requires a prior "alive" confirmation), which is
+            // reset by OnNewArea and by resurrection. These delays now only cover the few
+            // frames where an actor still initialising may report 0 hitpoints. Making them
+            // longer would silently drop genuine deaths happening right after a transition.
+            AreaChangeGraceMs = 1500;
+            PlayerDeathGraceMs = 1000;
             IgnoreWhilePlayerDead = true;
             ResetCounterOnNewGame = false;
+            ResetCounterOnClick = true;
+            ResetClickButton = MouseButtons.Left;
+            ResetClickRequiresCtrl = true;
 
             SpeakOnDeath = false;
             SpeakOnDeathText = "Follower down";
@@ -251,14 +296,14 @@ namespace Turbo.Plugins.GuiSquare
         }
 
         // =====================================================================
-        // Detection (phase de collecte, aucun rendu ici)
+        // Detection (collection phase, no rendering here)
         // =====================================================================
 
         public void OnNewArea(bool newGame, ISnoArea area)
         {
             var now = Hud.Time.Now;
 
-            // toute transition de zone : on desarme et on aveugle la detection un instant
+            // any zone transition: disarm, and stay blind for a moment
             _blockUntil = now.AddMilliseconds(AreaChangeGraceMs);
             Armed = false;
             _lastSeenUtc = DateTime.MinValue;
@@ -284,7 +329,7 @@ namespace Turbo.Plugins.GuiSquare
 
             var now = Hud.Time.Now;
 
-            // --- 1) hors partie / chargement / menu -----------------------------
+            // --- 1) out of game / loading / menu --------------------------------
             var me = Hud.Game.Me;
             if (!Hud.Game.IsInGame || Hud.Game.IsLoading || me == null || !me.IsInGame || !me.HasValidActor)
             {
@@ -301,19 +346,19 @@ namespace Turbo.Plugins.GuiSquare
                 return;
             }
 
-            // en mode diagnostic on releve les signaux bruts AVANT tous les filtres,
-            // pour pouvoir observer le follower meme quand le heros est mort / en pause
+            // In diagnostic mode, read the raw signals BEFORE every filter, so the
+            // follower can still be observed while the hero is dead or the game is paused.
             if (DebugEnabled)
                 CollectDebugInfo(FindFollowerActor());
 
-            // --- 1bis) jeu en pause (menu ESC) : les acteurs ne sont plus fiables
+            // --- 1b) game paused (ESC menu): actor data is no longer trustworthy -
             if (Hud.Game.IsPaused)
             {
                 _blockUntil = now.AddMilliseconds(AreaChangeGraceMs);
                 return;
             }
 
-            // --- 2) partie multijoueur : aucun follower possible ----------------
+            // --- 2) multiplayer game: no follower is possible -------------------
             if (Hud.Game.NumberOfPlayersInGame > 1)
             {
                 Armed = false;
@@ -322,24 +367,24 @@ namespace Turbo.Plugins.GuiSquare
                 return;
             }
 
-            // --- 3) le heros est mort : on gele tout ---------------------------
+            // --- 3) the hero is dead: freeze everything -------------------------
             var playerDead = me.IsDeadSafeCheck || me.IsDead;
             if (playerDead)
             {
                 _playerWasDead = true;
                 _blockUntil = now.AddMilliseconds(PlayerDeathGraceMs);
                 if (IgnoreWhilePlayerDead)
-                    return; // etat fige, jamais de comptage
+                    return; // state frozen, never counted
             }
             else if (_playerWasDead)
             {
-                // on vient de ressusciter : on prolonge la periode aveugle
+                // just resurrected: extend the blind window
                 _playerWasDead = false;
                 _blockUntil = now.AddMilliseconds(PlayerDeathGraceMs);
                 Armed = false;
             }
 
-            // --- 4) recherche du follower --------------------------------------
+            // --- 4) look for the follower ---------------------------------------
             var follower = FindFollowerActor();
             var hiredByGear = FollowerGearEquipped();
 
@@ -354,7 +399,7 @@ namespace Turbo.Plugins.GuiSquare
                 return;
             }
 
-            // --- 5) l'acteur est present : source de verite ---------------------
+            // --- 5) the actor is present: source of truth ------------------------
             if (follower != null)
             {
                 CurrentFollowerSno = follower.SnoActor.Sno;
@@ -374,12 +419,12 @@ namespace Turbo.Plugins.GuiSquare
                 return;
             }
 
-            // --- 6) engage mais acteur absent -----------------------------------
+            // --- 6) hired, but the actor is missing ------------------------------
             if (!TreatVanishAsDeath)
             {
-                // La detection par PV suffit (cf. IsActorAlive) : une absence d'acteur
-                // n'est qu'un trou de collecte. On conserve le dernier etat connu, sauf
-                // si on n'a jamais rien confirme -> gris.
+                // Hitpoint detection is enough (see IsActorAlive): a missing actor is only
+                // a collection gap. Keep the last known state, unless nothing was ever
+                // confirmed, in which case fall back to grey.
                 if (State != FollowerLifeState.Alive && State != FollowerLifeState.Dead)
                     State = FollowerLifeState.Unknown;
                 return;
@@ -387,17 +432,17 @@ namespace Turbo.Plugins.GuiSquare
 
             if (!Armed)
             {
-                // jamais confirme vivant dans cette zone : on ne conclut rien
+                // never confirmed alive in this area: conclude nothing
                 if (State != FollowerLifeState.Dead)
                     State = FollowerLifeState.Unknown;
                 return;
             }
 
             if (me.WorldId != _lastFollowerWorldId)
-                return; // on a change de monde : disparition normale
+                return; // we changed world: the disappearance is expected
 
             if ((now - _lastSeenUtc).TotalMilliseconds < VanishGraceMs)
-                return; // trop tot pour conclure
+                return; // too early to conclude
 
             RegisterDeath(now);
         }
@@ -405,10 +450,10 @@ namespace Turbo.Plugins.GuiSquare
         private void RegisterDeath(DateTime now)
         {
             if (now < _blockUntil)
-                return; // transition de zone / mort du heros : on ne conclut rien
+                return; // zone transition / hero death: conclude nothing
 
             if (State == FollowerLifeState.Dead)
-                return; // deja compte
+                return; // already counted
 
             State = FollowerLifeState.Dead;
             _lastDeathUtc = now;
@@ -425,7 +470,7 @@ namespace Turbo.Plugins.GuiSquare
                     Hud.Debug("[FollowerAliveStatus] follower death #" + DeathCount.ToString(CultureInfo.InvariantCulture));
             }
 
-            Armed = false; // il faudra le revoir vivant avant de recompter une mort
+            Armed = false; // it must be seen alive again before another death can be counted
         }
 
         private IActor FindFollowerActor()
@@ -450,13 +495,13 @@ namespace Turbo.Plugins.GuiSquare
 
         private bool IsActorAlive(IActor actor)
         {
-            // Signal principal : IActor.Hitpoints, renseigne par TurboHUD lui-meme.
-            // (l'attribut Hitpoints_Cur n'est PAS expose sur l'acteur follower : il renvoie -1)
+            // Primary signal: IActor.Hitpoints, populated by TurboHUD itself.
+            // (the Hitpoints_Cur attribute is NOT exposed on follower actors: it returns -1)
             if (actor.Hitpoints > 0.0001f)
                 return true;
 
-            // Second signal : si l'attribut est lisible et positif, on considere vivant.
-            // On ne conclut a la mort que si les deux sources sont d'accord.
+            // Secondary signal: if the attribute is readable and positive, treat as alive.
+            // Death is concluded only when both sources agree.
             var hpAttr = actor.GetAttributeValue(Hud.Sno.Attributes.Hitpoints_Cur, 0, -1.0d);
             if (hpAttr > 0.0001d)
                 return true;
@@ -476,33 +521,42 @@ namespace Turbo.Plugins.GuiSquare
         }
 
         // =====================================================================
-        // Rendu
+        // Rendering
         // =====================================================================
 
         public void PaintTopInGame(ClipState clipState)
         {
-            if (!Enabled)
-                return;
             if (clipState != ClipState.BeforeClip)
+                return; // only touch the clickable area on the main render pass
+
+            if (!Enabled || Hud.Render.UiHidden || !Hud.Game.IsInGame)
+            {
+                ClearHitArea();
                 return;
-            if (Hud.Render.UiHidden)
-                return;
-            if (!Hud.Game.IsInGame)
-                return;
+            }
             if (HideOnMapModes && (Hud.Game.MapMode == MapMode.WaypointMap || Hud.Game.MapMode == MapMode.ActMap))
+            {
+                ClearHitArea();
                 return;
+            }
 
             if (DebugEnabled)
                 PaintDebug();
 
             var noFollower = State == FollowerLifeState.NoFollower;
             if (HideWhenNoFollower && noFollower)
+            {
+                ClearHitArea();
                 return;
+            }
 
             float x, y, size;
             GetIconRect(out x, out y, out size);
             if (size <= 0f)
+            {
+                ClearHitArea();
                 return;
+            }
 
             var cx = x + (size / 2f);
             var cy = y + (size / 2f);
@@ -513,7 +567,7 @@ namespace Turbo.Plugins.GuiSquare
 
             if (BlinkWhenDead && State == FollowerLifeState.Dead)
             {
-                // pulsation ~1.1s
+                // pulse, about 1.1s per cycle
                 var phase = (Hud.Game.CurrentRealTimeMilliseconds % 1100L) / 1100.0d;
                 opacity = (float)(0.45d + (0.55d * Math.Abs(Math.Cos(phase * Math.PI))));
             }
@@ -562,10 +616,79 @@ namespace Turbo.Plugins.GuiSquare
                 }
             }
 
-            // info-bulle au survol
+            // hover and click area
             var hoverW = size * (ShowCounter && CounterOnRight ? 2.4f : 1.0f);
+            SetHitArea(x, y, hoverW, size);
+
             if (Hud.Window.CursorInsideRect(x, y, hoverW, size))
                 Hud.Render.SetHint(BuildHint());
+        }
+
+        // =====================================================================
+        // Resetting the counter by clicking the icon
+        // =====================================================================
+
+        private void SetHitArea(float x, float y, float w, float h)
+        {
+            lock (_hitLock)
+            {
+                _hitValid = true;
+                _hitX = x; _hitY = y; _hitW = w; _hitH = h;
+            }
+        }
+
+        private void ClearHitArea()
+        {
+            lock (_hitLock)
+            {
+                _hitValid = false;
+            }
+        }
+
+        private bool PointIsOnIcon(float px, float py)
+        {
+            lock (_hitLock)
+            {
+                return _hitValid
+                    && px >= _hitX && px <= _hitX + _hitW
+                    && py >= _hitY && py <= _hitY + _hitH;
+            }
+        }
+
+        private bool ResetGestureActive(float px, float py, MouseButtons button)
+        {
+            if (!Enabled || !ResetCounterOnClick)
+                return false;
+            if (button != ResetClickButton)
+                return false;
+            if (ResetClickRequiresCtrl && !Hud.Input.IsKeyDown(Keys.ControlKey))
+                return false;
+            return PointIsOnIcon(px, py);
+        }
+
+        /// <summary>
+        /// Called on a separate thread: swallow the click so it never reaches the game and
+        /// the character does not walk to wherever the icon sits.
+        /// </summary>
+        public bool MouseClickShouldBeBlocked(MouseButtons button, int x, int y)
+        {
+            return ResetGestureActive(x, y, button);
+        }
+
+        public bool MouseDown(MouseButtons button)
+        {
+            if (!ResetGestureActive(Hud.Window.CursorX, Hud.Window.CursorY, button))
+                return false;
+
+            DeathCount = 0;
+            _deathTimes.Clear();
+            return true;
+        }
+
+        public bool MouseUp(MouseButtons button)
+        {
+            // also consume the release of the click handled in MouseDown
+            return ResetGestureActive(Hud.Window.CursorX, Hud.Window.CursorY, button);
         }
 
         private static void WithOpacity(IBrush brush, float opacity, Action draw)
@@ -577,8 +700,8 @@ namespace Turbo.Plugins.GuiSquare
         }
 
         /// <summary>
-        /// Tete de mort dessinee en primitives (crane + machoire en couleur d'etat,
-        /// orbites / nez / dents evides en sombre). Meme encombrement qu'une pastille.
+        /// Skull drawn from primitives: cranium and jaw in the state colour, eye sockets,
+        /// nose and teeth hollowed out in near-black. Same footprint as the plain dot.
         /// </summary>
         private void DrawSkull(float x, float y, float s, IBrush body, float opacity)
         {
@@ -587,8 +710,8 @@ namespace Turbo.Plugins.GuiSquare
 
             WithOpacity(body, opacity, () =>
             {
-                body.DrawEllipse(x + (s * 0.50f), y + (s * 0.42f), s * 0.40f, s * 0.36f); // crane
-                body.DrawEllipse(x + (s * 0.50f), y + (s * 0.70f), s * 0.26f, s * 0.22f); // machoire
+                body.DrawEllipse(x + (s * 0.50f), y + (s * 0.42f), s * 0.40f, s * 0.36f); // cranium
+                body.DrawEllipse(x + (s * 0.50f), y + (s * 0.70f), s * 0.26f, s * 0.22f); // jaw
             });
 
             var hole = IconDetailBrush;
@@ -597,11 +720,11 @@ namespace Turbo.Plugins.GuiSquare
 
             WithOpacity(hole, opacity, () =>
             {
-                hole.DrawEllipse(x + (s * 0.325f), y + (s * 0.40f), s * 0.140f, s * 0.150f); // orbite gauche
-                hole.DrawEllipse(x + (s * 0.675f), y + (s * 0.40f), s * 0.140f, s * 0.150f); // orbite droite
-                hole.DrawEllipse(x + (s * 0.500f), y + (s * 0.585f), s * 0.055f, s * 0.085f); // nez
+                hole.DrawEllipse(x + (s * 0.325f), y + (s * 0.40f), s * 0.140f, s * 0.150f); // left eye socket
+                hole.DrawEllipse(x + (s * 0.675f), y + (s * 0.40f), s * 0.140f, s * 0.150f); // right eye socket
+                hole.DrawEllipse(x + (s * 0.500f), y + (s * 0.585f), s * 0.055f, s * 0.085f); // nose
 
-                // dents
+                // teeth
                 hole.DrawRectangle(x + (s * 0.400f), y + (s * 0.670f), s * 0.032f, s * 0.135f);
                 hole.DrawRectangle(x + (s * 0.484f), y + (s * 0.670f), s * 0.032f, s * 0.135f);
                 hole.DrawRectangle(x + (s * 0.568f), y + (s * 0.670f), s * 0.032f, s * 0.135f);
@@ -637,7 +760,16 @@ namespace Turbo.Plugins.GuiSquare
                 case FollowerLifeState.NoFollower: s = "No follower hired"; break;
                 default: s = "Unknown state"; break;
             }
-            return s + " - follower deaths: " + DeathCount.ToString(CultureInfo.InvariantCulture);
+            s += " - follower deaths: " + DeathCount.ToString(CultureInfo.InvariantCulture);
+
+            if (ResetCounterOnClick)
+            {
+                s += ResetClickRequiresCtrl
+                    ? " (ctrl+click to reset)"
+                    : " (click to reset)";
+            }
+
+            return s;
         }
 
         private void GetIconRect(out float x, out float y, out float size)
@@ -688,8 +820,8 @@ namespace Turbo.Plugins.GuiSquare
                     break;
 
                 case FollowerStatusIconPosition.BelowRbhSessionPanel:
-                    // RBH dessine son texte de session au coin haut-gauche de la minimap
-                    // (Hud.Render.MinimapUiElement), vers le bas. On se place dessous.
+                    // RBH draws its session text at the minimap's top-left corner
+                    // (Hud.Render.MinimapUiElement), downwards. We sit below it.
                     var minimap = Hud.Render.MinimapUiElement;
                     if (minimap != null && minimap.Rectangle.Width > 0f)
                     {
@@ -723,7 +855,7 @@ namespace Turbo.Plugins.GuiSquare
         }
 
         // =====================================================================
-        // Diagnostic
+        // Diagnostics
         // =====================================================================
 
         private void CollectDebugInfo(IActor follower)
@@ -740,7 +872,7 @@ namespace Turbo.Plugins.GuiSquare
                     + " acd=" + follower.AcdId.ToString(CultureInfo.InvariantCulture)
                     + " world=" + follower.WorldId.ToString(CultureInfo.InvariantCulture);
 
-                // suivi min/max de IActor.Hitpoints : s'il varie, c'est bien la vie courante
+                // Track the min/max of IActor.Hitpoints: if it varies, it really is current health.
                 var hpActor = follower.Hitpoints;
                 if (_hpTrackedAcd != follower.AcdId)
                 {

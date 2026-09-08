@@ -1,8 +1,8 @@
 # Follower Alive Status
 
-A TurboHUD plugin for Diablo III. A skull on your HUD turns red the
-moment your follower goes down, green when they get back up, and stays grey when you have no
-follower hired — with a counter that tallies **their** deaths and never yours.
+A TurboHUD plugin for Diablo III. A skull on your HUD turns red the moment your follower goes
+down, green when they get back up, and stays grey when you have no follower hired — with a
+counter that tallies **their** deaths and never yours.
 
 ![Follower Alive Status — the three icon states](docs/follower-status-icons.png)
 
@@ -69,14 +69,37 @@ the plugin itself. RBH users must whitelist the customizer too:
 | `IconStyle` | `Skull` | `Skull`, `Dot` or `Portrait` |
 | `IconSizeRatio` | `0.024` | Icon size, as a fraction of screen height |
 | `ShowCounter` / `CounterOnRight` | `true` / `true` | Death counter, beside or inside the icon |
+| `CounterPrefix` | `×` | Drawn in front of the number, so `×2` rather than a lone `2` |
 | `BlinkWhenDead` | `true` | Pulse the icon while the follower is down |
 | `HideWhenNoFollower` | `false` | Hide entirely instead of showing grey |
 | `ResetCounterOnNewGame` | `false` | Session total, or per game |
+| `ResetCounterOnClick` | `true` | Allow resetting the counter from the icon |
+| `ResetClickRequiresCtrl` | `true` | Whether the reset click needs Ctrl held |
+| `ResetClickButton` | `Left` | Mouse button used for the reset |
 | `SpeakOnDeath` | `false` | Spoken alert when the follower dies |
 | `DebugEnabled` | `false` | On-screen diagnostic panel (see below) |
 
 Colours are plain TurboHUD brushes and can be replaced: `AliveBrush`, `DeadBrush`,
 `NoFollowerBrush`, `IconDetailBrush`.
+
+### Resetting the counter
+
+The counter is a running session total: it survives quitting to the menu and starting another
+game, and only goes back to zero when TurboHUD restarts — or when you reset it yourself.
+
+**Ctrl + click the icon** to reset it. Ctrl is required by default because the icon sits in the
+top-left area where you click to move, and an accidental reset would be unrecoverable. The hover
+tooltip always states the gesture currently in effect, and the click is swallowed either way so
+your character never walks under the icon.
+
+For a plain click with no modifier, either drop the requirement or move the reset to a button that
+cannot be misclicked:
+
+```csharp
+plugin.ResetClickRequiresCtrl = false;
+// optionally, a button not bound to movement:
+plugin.ResetClickButton = System.Windows.Forms.MouseButtons.Middle;
+```
 
 ## How the detection works
 
@@ -97,9 +120,9 @@ first**. An ambiguous moment therefore costs a missed count at worst, never a ph
 
 | Situation | Behaviour |
 | --- | --- |
-| Your hero dies | State frozen, counting suspended, plus a 3 s blind window after you resurrect |
+| Your hero dies | State frozen, counting suspended, plus a 1 s blind window after you resurrect |
 | Loading screen, menu, paused | Grey, detection disarmed |
-| Zone change, rift entry, town portal | 4 s blind window; the follower must be seen alive again before a death can register |
+| Zone change, rift entry, town portal | The follower must be seen alive again before a death can register, plus a 1.5 s blind window |
 | Fast teleport chains | Nothing. Death rests on hitpoints alone — a briefly uncollected actor is a gap, not a corpse |
 | Multiplayer game | Grey. Followers cannot be brought along |
 | Standing beside the town follower NPCs | Grey. Their SNOs do not match a hired hireling |
@@ -109,7 +132,6 @@ first**. An ambiguous moment therefore costs a missed count at worst, never a ph
 Setting `DebugEnabled = true` prints the raw signals on screen — state, armed flag, hitpoints from
 both sources with the min/max observed, the follower actor's SNO and world, equipped follower
 items, and a timestamped log of the last five deaths.
-
 
 ## Requirements
 
