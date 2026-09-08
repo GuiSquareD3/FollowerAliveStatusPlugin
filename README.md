@@ -38,6 +38,12 @@ ratio you can tune. **No RBH file is read or modified for this.**
    minimap area
 ```
 
+The drop is expressed as a number of RBH tracker lines, and the height of a line is measured live
+rather than assumed, so **the icon keeps its place when you resize the game window**. That detail
+matters: RBH sizes its font to fit the minimap width but stops shrinking at 13.5 pixels, an
+absolute floor, so its panel takes a larger share of the minimap on a small window than on a large
+one. A fixed fraction of the minimap drifts into the panel as soon as the window changes size.
+
 Other anchors: `UnderPortrait`, `LeftOfHealthGlobe`, `RightOfResourceGlobe`, `AboveSkillBar`,
 `UnderMinimapClock`, and `Custom` for free placement by screen ratio.
 
@@ -53,8 +59,8 @@ Other anchors: `UnderPortrait`, `LeftOfHealthGlobe`, `RightOfResourceGlobe`, `Ab
    "Turbo.Plugins.GuiSquare.FollowerAliveStatusPlugin"
    ```
 
-3. Restart TurboHUD. If the icon overlaps the session panel or floats too low, adjust
-   `RbhPanelHeightRatio` — it depends on how many tracker lines you have enabled.
+3. Restart TurboHUD. If the icon overlaps the session panel or floats too low, set
+   `RbhPanelLineCount` to the number of lines in your own session panel, plus one.
 
 ## Configuration
 
@@ -65,7 +71,8 @@ the plugin itself. RBH users must whitelist the customizer too:
 | Option | Default | What it controls |
 | --- | --- | --- |
 | `Position` | `BelowRbhSessionPanel` | Where the icon docks |
-| `RbhPanelHeightRatio` | `0.46` | Drop below the minimap top edge, as a fraction of its height |
+| `RbhPanelLineCount` | `8` | Drop below the minimap top edge, in RBH tracker lines. Resize-proof |
+| `RbhPanelHeightRatio` | `0.46` | Legacy drop as a fraction of minimap height, used only when `RbhPanelLineCount` is `0` |
 | `IconStyle` | `Skull` | `Skull`, `Dot` or `Portrait` |
 | `IconSizeRatio` | `0.024` | Icon size, as a fraction of screen height |
 | `ShowCounter` / `CounterOnRight` | `true` / `true` | Death counter, beside or inside the icon |

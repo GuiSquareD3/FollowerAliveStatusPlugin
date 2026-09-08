@@ -35,10 +35,21 @@ namespace Turbo.Plugins.GuiSquare
                 // Custom               -> free placement via CustomX / CustomY
                 plugin.Position = FollowerStatusIconPosition.BelowRbhSessionPanel;
 
-                // Height of the RBH panel, as a fraction of the minimap's height.
-                // THIS is the value to adjust if the icon overlaps the panel or floats
-                // too low: increase it to move down, decrease it to move up.
-                plugin.RbhPanelHeightRatio = 0.46f;
+                // How far below the minimap's top edge to sit, expressed as a number of
+                // RBH tracker lines. THIS is the value to adjust if the icon overlaps the
+                // panel or floats too low: count the lines in your own session panel and
+                // add one for breathing room.
+                //
+                // The line height itself is measured live, including RBH's own 13.5px
+                // floor, so the icon keeps its place when the game window is resized.
+                plugin.RbhPanelLineCount = 8;
+
+                // Legacy placement, a plain fraction of the minimap height. Only used when
+                // RbhPanelLineCount is 0, and it does NOT survive a window resize: RBH's
+                // font stops shrinking at 13.5px, so its panel takes a larger share of the
+                // minimap on a small window than on a big one.
+                // plugin.RbhPanelLineCount = 0;
+                // plugin.RbhPanelHeightRatio = 0.46f;
 
                 // Fine tuning for any position (as a ratio of screen height).
                 // plugin.OffsetX = 0.00f;

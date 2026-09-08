@@ -80,11 +80,32 @@ namespace Turbo.Plugins.GuiSquare
         public FollowerStatusIconStyle IconStyle { get; set; }
 
         /// <summary>
+        /// Number of text lines the RBH session panel draws. This is what actually sets
+        /// the drop below the minimap's top edge, because the panel's height is
+        /// lineCount * lineHeight, and lineHeight is measured live (see below) rather
+        /// than assumed. Count the lines in your own panel and set this, adding one for
+        /// breathing room. Set it to 0 to fall back on RbhPanelHeightRatio instead.
+        ///
+        /// Why not a simple fraction of the minimap: RBH sizes its font so the widest
+        /// line fits the minimap width, but stops growing once a glyph reaches 13.5px
+        /// AND the size reaches Session_Tracking.Minmax_Text_Size. That floor is in
+        /// absolute pixels, so on a small window the panel takes a LARGER share of the
+        /// minimap than on a big one. A fixed fraction cannot track that; a measured
+        /// line height can.
+        /// </summary>
+        public int RbhPanelLineCount { get; set; }
+
+        /// <summary>
+        /// RBH's own absolute floor for a line of its session text, in pixels.
+        /// Mirrors the 13.5f literal in its Session_Information drawing code.
+        /// </summary>
+        public float RbhPanelMinLineHeight { get; set; }
+
+        /// <summary>
         /// Height of the RBH session panel, as a fraction of the minimap's height.
-        /// Only used by Position = BelowRbhSessionPanel. RBH draws its text from the
-        /// top-left corner of Hud.Render.MinimapUiElement downwards, and its height
-        /// depends on how many tracker lines are enabled in its config, so tune this
-        /// value if the icon overlaps the panel or floats too low.
+        /// Only used by Position = BelowRbhSessionPanel, and only when
+        /// RbhPanelLineCount is 0. Does not survive a window resize: prefer the line
+        /// count above.
         /// </summary>
         public float RbhPanelHeightRatio { get; set; }
 
@@ -209,6 +230,9 @@ namespace Turbo.Plugins.GuiSquare
         private float _hpObservedMin;
         private float _hpObservedMax;
 
+        private IFont _rbhProbeFont;
+        private float _dbgRbhLineHeight;
+
         private ITexture _templarTexture;
         private ITexture _scoundrelTexture;
         private ITexture _enchantressTexture;
@@ -219,7 +243,9 @@ namespace Turbo.Plugins.GuiSquare
             Order = 30000;
 
             Position = FollowerStatusIconPosition.BelowRbhSessionPanel;
-            RbhPanelHeightRatio = 0.46f;
+            RbhPanelLineCount = 8;          // 7 tracker lines plus one for breathing room
+            RbhPanelMinLineHeight = 13.5f;  // RBH's own floor, in absolute pixels
+            RbhPanelHeightRatio = 0.46f;    // legacy fallback, only when RbhPanelLineCount == 0
             IconStyle = FollowerStatusIconStyle.Skull;
             CustomX = 0.5f;
             CustomY = 0.92f;
@@ -289,6 +315,11 @@ namespace Turbo.Plugins.GuiSquare
             CounterFont     = Hud.Render.CreateFont("tahoma",  7.5f, 255, 240, 240, 240, true, false, 190, 0, 0, 0, true);
             CounterDeadFont = Hud.Render.CreateFont("tahoma",  7.5f, 255, 255, 105, 105, true, false, 190, 0, 0, 0, true);
             DebugFont       = Hud.Render.CreateFont("consolas", 8.5f, 255, 255, 255, 160, false, false, 200, 0, 0, 0, true);
+
+            // Probe font matching what RBH uses for its session panel (Arial, bold, its
+            // Minmax_Text_Size). We never draw with it: we only measure a line's height,
+            // which is what tells us how far down the panel actually reaches right now.
+            _rbhProbeFont = Hud.Render.CreateFont("Arial", 8.0f, 255, 255, 255, 255, true, false, false);
 
             _templarTexture     = Hud.Texture.GetTexture(3116868919u);
             _scoundrelTexture   = Hud.Texture.GetTexture(441912908u);
@@ -827,7 +858,17 @@ namespace Turbo.Plugins.GuiSquare
                     {
                         rect = minimap.Rectangle;
                         x = rect.Left;
-                        y = rect.Top + (rect.Height * RbhPanelHeightRatio);
+
+                        if (RbhPanelLineCount > 0)
+                        {
+                            // Measured every frame, so the icon follows a window resize.
+                            var lineHeight = MeasureRbhLineHeight();
+                            y = rect.Top + (RbhPanelLineCount * lineHeight);
+                        }
+                        else
+                        {
+                            y = rect.Top + (rect.Height * RbhPanelHeightRatio);
+                        }
                     }
                     break;
 
@@ -842,6 +883,27 @@ namespace Turbo.Plugins.GuiSquare
 
             x += h * OffsetX;
             y += h * OffsetY;
+        }
+
+        /// <summary>
+        /// Height of one line of the RBH session panel, in pixels, at the current window
+        /// size. TurboHUD font sizes scale with the window, so this shrinks and grows on
+        /// a resize -- except below RBH's own absolute floor, which is exactly why a fixed
+        /// fraction of the minimap drifts and this does not.
+        /// </summary>
+        private float MeasureRbhLineHeight()
+        {
+            var h = RbhPanelMinLineHeight;
+
+            if (_rbhProbeFont != null)
+            {
+                var layout = _rbhProbeFont.GetTextLayout("X");
+                if (layout != null && layout.Metrics.Height > h)
+                    h = layout.Metrics.Height;
+            }
+
+            _dbgRbhLineHeight = h;
+            return h;
         }
 
         private bool TryGetRect(string path, out System.Drawing.RectangleF rect)
@@ -936,6 +998,31 @@ namespace Turbo.Plugins.GuiSquare
             return s;
         }
 
+        /// <summary>
+        /// Window and minimap geometry, so a window resize can be watched live: every
+        /// number here must move when the game window is resized.
+        /// </summary>
+        private string BuildLayoutDebugLine()
+        {
+            var minimap = Hud.Render.MinimapUiElement;
+            var rectText = minimap == null
+                ? "null"
+                : minimap.Rectangle.Left.ToString("0", CultureInfo.InvariantCulture)
+                    + "," + minimap.Rectangle.Top.ToString("0", CultureInfo.InvariantCulture)
+                    + " " + minimap.Rectangle.Width.ToString("0", CultureInfo.InvariantCulture)
+                    + "x" + minimap.Rectangle.Height.ToString("0", CultureInfo.InvariantCulture);
+
+            float ix, iy, isize;
+            GetIconRect(out ix, out iy, out isize);
+
+            return "Win=" + Hud.Window.Size.Width.ToString(CultureInfo.InvariantCulture)
+                + "x" + Hud.Window.Size.Height.ToString(CultureInfo.InvariantCulture)
+                + "  Minimap=" + rectText
+                + "  RbhLine=" + _dbgRbhLineHeight.ToString("0.0", CultureInfo.InvariantCulture)
+                + "  Icon=" + ix.ToString("0", CultureInfo.InvariantCulture)
+                + "," + iy.ToString("0", CultureInfo.InvariantCulture);
+        }
+
         private void PaintDebug()
         {
             if (DebugFont == null)
@@ -960,6 +1047,7 @@ namespace Turbo.Plugins.GuiSquare
                 "SeenAgo=" + (_lastSeenUtc == DateTime.MinValue ? "never" : (now - _lastSeenUtc).TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture) + "ms")
                     + "  AliveAgo=" + (_lastAliveUtc == DateTime.MinValue ? "never" : (now - _lastAliveUtc).TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture) + "ms"),
                 "Deaths log=" + BuildDeathLog(),
+                BuildLayoutDebugLine(),
             };
 
             foreach (var line in lines)
