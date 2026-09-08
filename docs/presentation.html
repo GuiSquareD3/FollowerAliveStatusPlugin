@@ -1,0 +1,488 @@
+<title>Follower Alive Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground:      #eceef0;
+    --surface:     #f7f8f9;
+    --surface-alt: #e3e6e9;
+    --ink:         #1b1f24;
+    --ink-soft:    #454e58;
+    --muted:       #5d6772;
+    --line:        #d2d7dc;
+    --line-strong: #b9c1c9;
+    --accent:      #8a6a24;
+    --accent-soft: #f0e6cd;
+
+    /* couleurs d'etat : celles que le plugin dessine reellement */
+    --alive: #28c846;
+    --dead:  #e12323;
+    --none:  #737373;
+
+    /* le bandeau "specimen" imite l'ecran de jeu : sombre dans les deux themes */
+    --game-ground: #14181d;
+    --game-line:   #2b333c;
+    --game-ink:    #cdd4db;
+    --game-muted:  #7d8894;
+    --skull-hole:  #0a0c0e;
+
+    --measure: 68ch;
+    --radius: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #131519;
+      --surface:     #1a1e24;
+      --surface-alt: #212730;
+      --ink:         #e4e7ea;
+      --ink-soft:    #c2c9d1;
+      --muted:       #98a2ad;
+      --line:        #2a3038;
+      --line-strong: #3a434e;
+      --accent:      #d4a548;
+      --accent-soft: #2e2718;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #131519;
+    --surface:     #1a1e24;
+    --surface-alt: #212730;
+    --ink:         #e4e7ea;
+    --ink-soft:    #c2c9d1;
+    --muted:       #98a2ad;
+    --line:        #2a3038;
+    --line-strong: #3a434e;
+    --accent:      #d4a548;
+    --accent-soft: #2e2718;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 28px 88px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  h1, h2 {
+    font-family: Fraunces, ui-serif, Georgia, serif;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.015em;
+  }
+  h1 { font-size: clamp(2.2rem, 5.5vw, 3.1rem); font-weight: 700; line-height: 1.06; }
+  h2 { font-size: 1.42rem; font-weight: 600; line-height: 1.2; }
+  h3 { margin: 0; font-size: 0.94rem; font-weight: 600; letter-spacing: 0.005em; }
+  p  { margin: 0; max-width: var(--measure); }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  .lead { font-size: 1.1rem; color: var(--ink-soft); margin-top: 18px; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.86em;
+  }
+  code {
+    background: var(--surface-alt);
+    padding: 0.1em 0.36em;
+    border-radius: var(--radius);
+  }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+  .sec-head { display: flex; flex-direction: column; gap: 10px; }
+
+  /* -- barre meta sous le titre -------------------------------------- */
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 26px;
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .meta b { color: var(--ink-soft); font-weight: 500; }
+
+  /* -- bandeau specimen ---------------------------------------------- */
+  .specimen {
+    background: var(--game-ground);
+    border: 1px solid var(--game-line);
+    border-radius: var(--radius);
+    padding: 34px 24px 26px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 40px;
+  }
+  .state { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 168px; }
+  .state svg { width: 84px; height: 84px; display: block; }
+  .state-name {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.76rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .state-note { font-size: 0.82rem; line-height: 1.45; color: var(--game-muted); text-align: center; }
+  .state-row { display: flex; align-items: center; gap: 9px; }
+  .state-count {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.05rem;
+    color: var(--game-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* -- tableaux ------------------------------------------------------- */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
+  th, td { text-align: left; padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom-color: var(--line-strong);
+  }
+  td:first-child { padding-right: 22px; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  .t-key { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.82rem; color: var(--ink); }
+
+  /* -- schema de placement -------------------------------------------- */
+  .diagram {
+    background: var(--game-ground);
+    border: 1px solid var(--game-line);
+    border-radius: var(--radius);
+    padding: 22px;
+    overflow-x: auto;
+  }
+  .diagram svg { width: 100%; min-width: 420px; height: auto; display: block; }
+
+  /* -- listes --------------------------------------------------------- */
+  .anchors { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border-block: 1px solid var(--line); }
+  .anchors li { background: var(--ground); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+  .anchors .mono { color: var(--ink); min-width: 210px; }
+  .anchors span:last-child { color: var(--muted); font-size: 0.88rem; }
+  .anchors .is-default::after {
+    content: "default";
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 1px 7px;
+    margin-left: 8px;
+  }
+
+  ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 20px; }
+  ol.steps li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; }
+  ol.steps li::before {
+    content: counter(step);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+  }
+  ol.steps p { margin-top: 4px; color: var(--ink-soft); font-size: 0.92rem; }
+
+  pre {
+    margin: 8px 0 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+
+  .checks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 26px; }
+  .checks li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: baseline; font-size: 0.92rem; }
+  .checks svg { width: 12px; height: 12px; overflow: visible; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    max-width: var(--measure);
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 40px 20px 64px; gap: 44px; }
+    .specimen { gap: 28px; padding: 26px 16px 20px; }
+    .state { width: 132px; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <p class="eyebrow">TurboHUD plugin &middot; Diablo III</p>
+    <h1>Follower Alive Status</h1>
+    <p class="lead">A skull on your HUD that turns red the moment your follower goes down, green when they get back up, and grey when you have no follower hired &mdash; with a counter that tallies <em>their</em> deaths and never yours.</p>
+    <div class="meta">
+      <span><b>Namespace</b> Turbo.Plugins.GuiSquare</span>
+      <span><b>Folder</b> plugins/GuiSquare</span>
+      <span><b>Solo play only</b> followers are disabled in multiplayer</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>Three states, one glyph</h2>
+      <p>The icon is drawn from vector primitives rather than a texture, so it scales cleanly at any HUD size. Below is the exact geometry the plugin renders.</p>
+    </div>
+
+    <div class="specimen">
+      <div class="state">
+        <svg viewBox="-10 -10 120 120" role="img" aria-label="Green skull: follower alive">
+          <circle cx="50" cy="50" r="59" fill="#000" opacity="0.63"></circle>
+          <ellipse cx="50" cy="42" rx="40" ry="36" fill="var(--alive)"></ellipse>
+          <ellipse cx="50" cy="70" rx="26" ry="22" fill="var(--alive)"></ellipse>
+          <ellipse cx="32.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="67.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="50" cy="58.5" rx="5.5" ry="8.5" fill="var(--skull-hole)"></ellipse>
+          <rect x="40" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="48.4" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="56.8" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+        </svg>
+        <div class="state-name" style="color: var(--alive)">Alive</div>
+        <p class="state-note">The hireling actor is loaded and its hitpoints are above zero.</p>
+      </div>
+
+      <div class="state">
+        <div class="state-row">
+          <svg viewBox="-10 -10 120 120" role="img" aria-label="Red skull: follower dead">
+            <circle cx="50" cy="50" r="59" fill="#000" opacity="0.63"></circle>
+            <ellipse cx="50" cy="42" rx="40" ry="36" fill="var(--dead)"></ellipse>
+            <ellipse cx="50" cy="70" rx="26" ry="22" fill="var(--dead)"></ellipse>
+            <ellipse cx="32.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+            <ellipse cx="67.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+            <ellipse cx="50" cy="58.5" rx="5.5" ry="8.5" fill="var(--skull-hole)"></ellipse>
+            <rect x="40" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+            <rect x="48.4" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+            <rect x="56.8" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          </svg>
+          <span class="state-count">2</span>
+        </div>
+        <div class="state-name" style="color: var(--dead)">Down</div>
+        <p class="state-note">Pulses gently, and the counter beside it steps up by one.</p>
+      </div>
+
+      <div class="state">
+        <svg viewBox="-10 -10 120 120" role="img" aria-label="Grey skull: no follower hired">
+          <circle cx="50" cy="50" r="59" fill="#000" opacity="0.63"></circle>
+          <ellipse cx="50" cy="42" rx="40" ry="36" fill="var(--none)"></ellipse>
+          <ellipse cx="50" cy="70" rx="26" ry="22" fill="var(--none)"></ellipse>
+          <ellipse cx="32.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="67.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="50" cy="58.5" rx="5.5" ry="8.5" fill="var(--skull-hole)"></ellipse>
+          <rect x="40" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="48.4" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="56.8" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+        </svg>
+        <div class="state-name" style="color: var(--none)">No follower</div>
+        <p class="state-note">Also shown while loading, in menus, and in multiplayer games.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What it reads</h2>
+      <p>Two independent signals, and a deliberately asymmetric rule between them: the follower counts as <strong>alive if either source says alive</strong>, and dead only when both agree. A missing read can never manufacture a death.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Signal</th><th scope="col">Role</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="t-key">IActor.Hitpoints</td>
+            <td>Primary. Verified in game as current health: it drops to <code>0</code> on death while the actor stays present, then climbs back on revival.</td>
+          </tr>
+          <tr>
+            <td class="t-key">Hitpoints_Cur</td>
+            <td>Secondary. This attribute is <em>not</em> exposed on follower actors &mdash; it returns <code>-1</code> &mdash; so it only ever confirms life, never death.</td>
+          </tr>
+          <tr>
+            <td class="t-key">Actor SNO</td>
+            <td>Strict match on the three hired hirelings: <span class="mono">_hireling_templar</span> (52693), <span class="mono">_hireling_scoundrel</span> (52694), <span class="mono">_hireling_enchantress</span> (4482). The town NPC versions carry different SNOs and are ignored.</td>
+          </tr>
+          <tr>
+            <td class="t-key">Pet item slots</td>
+            <td>Follower gear in <span class="mono">PetRightHand</span>&hellip;<span class="mono">PetBracers</span> proves a follower is hired even at a moment the actor is not loaded.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What it refuses to count</h2>
+      <p>Every guard below exists to keep one number honest. A death is only ever recorded after the plugin has <em>confirmed the follower alive</em> first &mdash; so an ambiguous moment costs you a missed count at worst, never a phantom one.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Situation</th><th scope="col">Behaviour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Your hero dies</td><td>State frozen, counting suspended, plus a 3&nbsp;s blind window after you resurrect.</td></tr>
+          <tr><td>Loading screen, menu, paused</td><td>Grey, detection disarmed.</td></tr>
+          <tr><td>Zone change, rift entry, town portal</td><td>4&nbsp;s blind window; the follower must be seen alive again before a death can register.</td></tr>
+          <tr><td>Fast teleport chains</td><td>Nothing. Death rests on hitpoints alone &mdash; a briefly uncollected actor is treated as a gap, not a corpse.</td></tr>
+          <tr><td>Multiplayer game</td><td>Grey. Followers cannot be brought along.</td></tr>
+          <tr><td>Standing beside the town follower NPCs</td><td>Grey. Their SNOs do not match a hired hireling.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Where it sits</h2>
+      <p>By default the icon docks under the RBH session panel. RBH draws that panel from the top-left corner of the minimap element downwards, and its internals are private, so the plugin anchors to the same element and drops by a ratio you can tune &mdash; no RBH code is touched or required.</p>
+    </div>
+
+    <div class="diagram">
+      <svg viewBox="0 0 620 300" role="img" aria-label="Schematic of the game screen showing the icon docked below the RBH session panel">
+        <!-- ecran -->
+        <rect x="1" y="1" width="618" height="298" rx="4" fill="none" stroke="var(--game-line)" stroke-width="2"></rect>
+        <text x="601" y="286" text-anchor="end" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">game screen</text>
+
+        <!-- element minimap -->
+        <rect x="34" y="30" width="196" height="196" rx="3" fill="none" stroke="var(--game-line)" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+        <text x="34" y="22" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">Hud.Render.MinimapUiElement</text>
+
+        <!-- panneau de session RBH -->
+        <rect x="46" y="42" width="150" height="10" rx="2" fill="var(--game-ink)" opacity="0.72"></rect>
+        <rect x="46" y="58" width="132" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <rect x="46" y="74" width="164" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <rect x="46" y="90" width="158" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <rect x="46" y="106" width="146" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <rect x="46" y="122" width="152" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <rect x="46" y="138" width="120" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
+        <text x="246" y="97" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">RBH session panel</text>
+
+        <!-- cote RbhPanelHeightRatio -->
+        <line x1="24" y1="30" x2="24" y2="120" stroke="var(--accent)" stroke-width="1.2"></line>
+        <line x1="19" y1="30" x2="29" y2="30" stroke="var(--accent)" stroke-width="1.2"></line>
+        <line x1="19" y1="120" x2="29" y2="120" stroke="var(--accent)" stroke-width="1.2"></line>
+        <text x="16" y="78" text-anchor="end" fill="var(--accent)" font-family="IBM Plex Mono, monospace" font-size="10">0.46</text>
+
+        <!-- icone en place -->
+        <g transform="translate(38 122) scale(0.30)">
+          <circle cx="50" cy="50" r="59" fill="#000" opacity="0.63"></circle>
+          <ellipse cx="50" cy="42" rx="40" ry="36" fill="var(--alive)"></ellipse>
+          <ellipse cx="50" cy="70" rx="26" ry="22" fill="var(--alive)"></ellipse>
+          <ellipse cx="32.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="67.5" cy="40" rx="14" ry="15" fill="var(--skull-hole)"></ellipse>
+          <ellipse cx="50" cy="58.5" rx="5.5" ry="8.5" fill="var(--skull-hole)"></ellipse>
+          <rect x="40" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="48.4" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+          <rect x="56.8" y="67" width="3.2" height="13.5" fill="var(--skull-hole)"></rect>
+        </g>
+        <text x="76" y="140" fill="var(--game-ink)" font-family="IBM Plex Mono, monospace" font-size="13">2</text>
+        <line x1="92" y1="136" x2="240" y2="136" stroke="var(--game-line)" stroke-width="1"></line>
+        <text x="246" y="140" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">icon + follower death count</text>
+      </svg>
+    </div>
+
+    <ul class="anchors">
+      <li><span class="mono is-default">BelowRbhSessionPanel</span><span>under the RBH session tracker</span></li>
+      <li><span class="mono">UnderPortrait</span><span>beneath your hero portrait</span></li>
+      <li><span class="mono">LeftOfHealthGlobe</span><span>next to the health orb</span></li>
+      <li><span class="mono">RightOfResourceGlobe</span><span>next to the resource orb</span></li>
+      <li><span class="mono">AboveSkillBar</span><span>centred over the skill bar</span></li>
+      <li><span class="mono">UnderMinimapClock</span><span>below the minimap clock</span></li>
+      <li><span class="mono">Custom</span><span>free placement by screen ratio</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Install</h2>
+    </div>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>Drop the folder in</h3>
+          <p>Copy <code>GuiSquare</code> into your TurboHUD <code>plugins</code> directory. The plugin is self-contained &mdash; no other files, no textures.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Whitelist it if you run RBH</h3>
+          <p>RBH's plugin manager disables everything it does not know about. Add one line to <span class="mono">Manager_Config.cs</span>, in the <span class="mono">Enable_Plugins</span> list:</p>
+          <pre>"Turbo.Plugins.GuiSquare.FollowerAliveStatusPlugin"</pre>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Line it up</h3>
+          <p>Restart TurboHUD. If the skull overlaps the session panel or floats too low, nudge a single number &mdash; <span class="mono">RbhPanelHeightRatio</span>, which depends on how many tracker lines you have enabled. A companion customizer file exposes that and every other option without editing the plugin.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Verified in game</h2>
+      <p>Each case below was walked through live, with a diagnostic panel reading the raw signals. The panel ships with the plugin and can be switched back on at any time.</p>
+    </div>
+    <ul class="checks">
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Follower alive</span></li>
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Follower death counted once</span></li>
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Revival, no double count</span></li>
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Your own death, counter frozen</span></li>
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Follower dismissed, NPCs in range</span></li>
+      <li><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.2 4.4 9.6 11 2.6" fill="none" stroke="var(--alive)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Fast teleport chains</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    The counter runs session-wide by default and can be reset per game. Icon style, size, colours, position, an optional spoken alert on death, and the diagnostic panel are all reachable from the customizer file.
+  </footer>
+
+</div>

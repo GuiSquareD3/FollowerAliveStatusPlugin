@@ -1,0 +1,92 @@
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// Fichier d'exemple : renomme-le en .cs pour l'activer.
+// Il permet de regler FollowerAliveStatusPlugin sans toucher au plugin lui-meme.
+//
+// ATTENTION : RBH desactive tout plugin non liste. Si tu actives ce fichier,
+// ajoute AUSSI cette ligne a Enable_Plugins dans
+//   plugins/RosbotHelper/Config/Manager_Config.cs
+//   "Turbo.Plugins.GuiSquare.FollowerAliveStatusCustomizer"
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+using Turbo.Plugins.Default;
+
+namespace Turbo.Plugins.GuiSquare
+{
+    public class FollowerAliveStatusCustomizer : BasePlugin, ICustomizer
+    {
+        public FollowerAliveStatusCustomizer()
+        {
+            Enabled = true;
+        }
+
+        public void Customize()
+        {
+            Hud.RunOnPlugin<FollowerAliveStatusPlugin>(plugin =>
+            {
+                // ---------------------------------------------------------------
+                // 1) OU placer l'icone + le compteur
+                // ---------------------------------------------------------------
+                // BelowRbhSessionPanel -> sous le panneau de session RBH            [defaut]
+                // UnderPortrait        -> sous le portrait du heros (haut gauche)
+                // LeftOfHealthGlobe    -> a gauche du globe de vie (bas gauche)
+                // RightOfResourceGlobe -> a droite du globe de ressource (bas droite)
+                // AboveSkillBar        -> au-dessus de la barre de competences (bas centre)
+                // UnderMinimapClock    -> sous l'horloge de la minimap (haut droite)
+                // Custom               -> position libre via CustomX / CustomY
+                plugin.Position = FollowerStatusIconPosition.BelowRbhSessionPanel;
+
+                // Hauteur du panneau RBH, en fraction de la hauteur de la minimap.
+                // C'est LE reglage a ajuster si l'icone chevauche le panneau ou flotte
+                // trop bas : augmente pour descendre, diminue pour remonter.
+                plugin.RbhPanelHeightRatio = 0.46f;
+
+                // Micro-ajustement de n'importe quelle position (ratio de la hauteur d'ecran).
+                // plugin.OffsetX = 0.00f;
+                // plugin.OffsetY = 0.00f;
+
+                // Position totalement libre :
+                // plugin.Position = FollowerStatusIconPosition.Custom;
+                // plugin.CustomX = 0.50f;
+                // plugin.CustomY = 0.90f;
+
+                // ---------------------------------------------------------------
+                // 2) Apparence
+                // ---------------------------------------------------------------
+                // Skull -> tete de mort coloree selon l'etat                        [defaut]
+                // Dot   -> simple pastille ronde
+                // Portrait -> tete du follower + petite pastille d'etat
+                plugin.IconStyle = FollowerStatusIconStyle.Skull;
+
+                plugin.IconSizeRatio = 0.024f;   // taille de l'icone
+                plugin.ShowCounter = true;       // afficher le compteur de morts
+                plugin.CounterOnRight = true;    // false = chiffre a l'interieur de l'icone
+                plugin.HideCounterWhenZero = false;
+                plugin.BlinkWhenDead = true;
+                plugin.HideWhenNoFollower = false; // true = rien d'affiche sans follower
+
+                // Couleurs (a, r, g, b, epaisseur : 0 = rempli)
+                // plugin.AliveBrush      = Hud.Render.CreateBrush(230, 40, 200, 70, 0);
+                // plugin.DeadBrush       = Hud.Render.CreateBrush(240, 225, 35, 35, 0);
+                // plugin.IconDetailBrush = Hud.Render.CreateBrush(255, 10, 10, 12, 0);
+
+                // ---------------------------------------------------------------
+                // 3) Comptage
+                // ---------------------------------------------------------------
+                plugin.ResetCounterOnNewGame = false; // true = compteur remis a 0 a chaque partie
+                plugin.SpeakOnDeath = false;          // annonce vocale a chaque mort
+
+                // ---------------------------------------------------------------
+                // 4) Detection
+                // ---------------------------------------------------------------
+                // Valide en jeu : la mort est vue via IActor.Hitpoints qui tombe a 0
+                // pendant que l'acteur reste present. L'heuristique de disparition est
+                // donc desactivee, ce qui supprime les faux positifs en teleportation.
+                // plugin.TreatVanishAsDeath = false;
+
+                // Panneau de diagnostic : desactive.
+                // Remets-le a true pour reafficher les signaux bruts (PV, acteur, etat...).
+                plugin.DebugEnabled = false;
+            });
+        }
+    }
+}
