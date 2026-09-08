@@ -126,3 +126,7 @@ Each case below was walked through live with the diagnostic panel open:
 
 TurboHUD with the `Turbo.Plugins` API used here (`IInGameTopPainter`, `IAfterCollectHandler`,
 `INewAreaHandler`). No external dependencies.
+
+## License
+
+[MIT](LICENSE) — use it, change it, ship it in your own pack, just keep the notice.
