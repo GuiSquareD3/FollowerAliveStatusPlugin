@@ -108,19 +108,8 @@ first**. An ambiguous moment therefore costs a missed count at worst, never a ph
 
 Setting `DebugEnabled = true` prints the raw signals on screen — state, armed flag, hitpoints from
 both sources with the min/max observed, the follower actor's SNO and world, equipped follower
-items, and a timestamped log of the last five deaths. Useful when lining up the icon, or if the
-detection ever behaves unexpectedly after a game patch.
+items, and a timestamped log of the last five deaths.
 
-## Verified in game
-
-Each case below was walked through live with the diagnostic panel open:
-
-- [x] Follower alive
-- [x] Follower death counted once
-- [x] Revival, with no double count
-- [x] Your own death, counter frozen
-- [x] Follower dismissed, with the town NPCs in range
-- [x] Fast teleport chains between zones
 
 ## Requirements
 
