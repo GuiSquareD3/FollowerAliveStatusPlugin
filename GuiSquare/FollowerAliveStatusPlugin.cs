@@ -67,6 +67,13 @@ namespace Turbo.Plugins.GuiSquare
         public bool CounterOnRight { get; set; }
         /// <summary>Masque le compteur tant qu'il vaut 0.</summary>
         public bool HideCounterWhenZero { get; set; }
+
+        /// <summary>
+        /// Prefixe affiche devant le compteur, pour qu'un chiffre isole ne soit pas ambigu.
+        /// Defaut : "\u00D7" (signe multiplier), ce qui donne par exemple "x2".
+        /// Mettre "" pour n'afficher que le nombre.
+        /// </summary>
+        public string CounterPrefix { get; set; }
         /// <summary>Apparence de l'icone : tete de mort, pastille, ou portrait du follower.</summary>
         public FollowerStatusIconStyle IconStyle { get; set; }
 
@@ -187,6 +194,7 @@ namespace Turbo.Plugins.GuiSquare
             ShowCounter = true;
             CounterOnRight = true;
             HideCounterWhenZero = false;
+            CounterPrefix = "\u00D7"; // echappe pour garder ce fichier source en pur ASCII
             BlinkWhenDead = true;
             HideOnMapModes = true;
             HideWhenNoFollower = false;
@@ -545,7 +553,7 @@ namespace Turbo.Plugins.GuiSquare
                 var font = State == FollowerLifeState.Dead ? CounterDeadFont : CounterFont;
                 if (font != null)
                 {
-                    var text = DeathCount.ToString(CultureInfo.InvariantCulture);
+                    var text = CounterPrefix + DeathCount.ToString(CultureInfo.InvariantCulture);
                     var layout = font.GetTextLayout(text);
                     if (CounterOnRight || !ShowIcon)
                         font.DrawText(layout, x + (ShowIcon ? size * 1.15f : 0f), cy - (layout.Metrics.Height / 2f));

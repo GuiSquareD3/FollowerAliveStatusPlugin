@@ -61,6 +61,7 @@ namespace Turbo.Plugins.GuiSquare
                 plugin.ShowCounter = true;       // afficher le compteur de morts
                 plugin.CounterOnRight = true;    // false = chiffre a l'interieur de l'icone
                 plugin.HideCounterWhenZero = false;
+                plugin.CounterPrefix = "×"; // "x2" plutot qu'un "2" isole ; "" pour le nombre seul
                 plugin.BlinkWhenDead = true;
                 plugin.HideWhenNoFollower = false; // true = rien d'affiche sans follower
 
