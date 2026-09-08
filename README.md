@@ -1,6 +1,6 @@
 # Follower Alive Status
 
-A [TurboHUD](https://www.turbohud.org/) plugin for Diablo III. A skull on your HUD turns red the
+A TurboHUD plugin for Diablo III. A skull on your HUD turns red the
 moment your follower goes down, green when they get back up, and stays grey when you have no
 follower hired — with a counter that tallies **their** deaths and never yours.
 
