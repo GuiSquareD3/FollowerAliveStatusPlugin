@@ -3,6 +3,9 @@ plugins_compiled_*.dll
 logs/
 snapshots/
 
+# Local working notes, not part of the published plugin
+HANDOFF.md
+
 # Windows / editors
 Thumbs.db
 desktop.ini
