@@ -381,11 +381,11 @@
   <section>
     <div class="sec-head">
       <h2>Where it sits</h2>
-      <p>By default the icon docks under the RBH session panel. RBH draws that panel from the top-left corner of the minimap element downwards, and its internals are private, so the plugin anchors to the same element and drops by a ratio you can tune &mdash; no RBH code is touched or required.</p>
+      <p>By default the icon docks under the tracker text some HUD packs draw over the minimap. That text is drawn from the top-left corner of the minimap element downwards, and its internals are private, so the plugin anchors to the same element and drops by an amount you can tune &mdash; no code belonging to that pack is touched or required.</p>
     </div>
 
     <div class="diagram">
-      <svg viewBox="0 0 620 300" role="img" aria-label="Schematic of the game screen showing the icon docked below the RBH session panel">
+      <svg viewBox="0 0 620 300" role="img" aria-label="Schematic of the game screen showing the icon docked below the tracker text on the minimap">
         <!-- ecran -->
         <rect x="1" y="1" width="618" height="298" rx="4" fill="none" stroke="var(--game-line)" stroke-width="2"></rect>
         <text x="601" y="286" text-anchor="end" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">game screen</text>
@@ -394,7 +394,7 @@
         <rect x="34" y="30" width="196" height="196" rx="3" fill="none" stroke="var(--game-line)" stroke-width="1.5" stroke-dasharray="5 4"></rect>
         <text x="34" y="22" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">Hud.Render.MinimapUiElement</text>
 
-        <!-- panneau de session RBH -->
+        <!-- bloc de texte de suivi sur la minimap -->
         <rect x="46" y="42" width="150" height="10" rx="2" fill="var(--game-ink)" opacity="0.72"></rect>
         <rect x="46" y="58" width="132" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
         <rect x="46" y="74" width="164" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
@@ -402,9 +402,9 @@
         <rect x="46" y="106" width="146" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
         <rect x="46" y="122" width="152" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
         <rect x="46" y="138" width="120" height="10" rx="2" fill="var(--game-ink)" opacity="0.5"></rect>
-        <text x="246" y="97" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">RBH session panel</text>
+        <text x="246" y="97" fill="var(--game-muted)" font-family="IBM Plex Mono, monospace" font-size="11">tracker text on the minimap</text>
 
-        <!-- cote RbhPanelHeightRatio -->
+        <!-- cote MinimapTextHeightRatio -->
         <line x1="24" y1="30" x2="24" y2="120" stroke="var(--accent)" stroke-width="1.2"></line>
         <line x1="19" y1="30" x2="29" y2="30" stroke="var(--accent)" stroke-width="1.2"></line>
         <line x1="19" y1="120" x2="29" y2="120" stroke="var(--accent)" stroke-width="1.2"></line>
@@ -429,7 +429,7 @@
     </div>
 
     <ul class="anchors">
-      <li><span class="mono is-default">BelowRbhSessionPanel</span><span>under the RBH session tracker</span></li>
+      <li><span class="mono is-default">BelowMinimapText</span><span>under the tracker text on the minimap</span></li>
       <li><span class="mono">UnderPortrait</span><span>beneath your hero portrait</span></li>
       <li><span class="mono">LeftOfHealthGlobe</span><span>next to the health orb</span></li>
       <li><span class="mono">RightOfResourceGlobe</span><span>next to the resource orb</span></li>
@@ -452,15 +452,15 @@
       </li>
       <li>
         <div>
-          <h3>Whitelist it if you run RBH</h3>
-          <p>RBH's plugin manager disables everything it does not know about. Add one line to <span class="mono">Manager_Config.cs</span>, in the <span class="mono">Enable_Plugins</span> list:</p>
+          <h3>Whitelist it on a managed pack</h3>
+          <p>Some HUD packs ship a plugin manager that disables everything it does not know about. Add one line to that manager&rsquo;s enable list:</p>
           <pre>"Turbo.Plugins.GuiSquare.FollowerAliveStatusPlugin"</pre>
         </div>
       </li>
       <li>
         <div>
           <h3>Line it up</h3>
-          <p>Restart TurboHUD. If the skull overlaps the session panel or floats too low, nudge a single number &mdash; <span class="mono">RbhPanelHeightRatio</span>, which depends on how many tracker lines you have enabled. A companion customizer file exposes that and every other option without editing the plugin.</p>
+          <p>Restart TurboHUD. If the skull overlaps that text or floats too low, nudge a single number &mdash; <span class="mono">MinimapTextLineCount</span>, which depends on how many tracker lines you have enabled. A companion customizer file exposes that and every other option without editing the plugin.</p>
         </div>
       </li>
     </ol>

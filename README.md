@@ -17,19 +17,20 @@ Solo play only: followers cannot be brought into multiplayer games, so the icon 
 - Your own deaths, loading screens, zone changes and teleport chains never touch the counter.
 - The town follower NPCs are ignored — only a genuinely hired hireling is tracked.
 - Three icon styles: skull, plain dot, or the follower's portrait.
-- Seven placements, including one docked under the RBH session panel.
+- Seven placements, including one docked under the tracker text on the minimap.
 
 ## Where it sits
 
-By default the icon docks under the RBH session tracker. RBH draws that panel from the top-left
-corner of the minimap element downwards, so this plugin anchors to the same element and drops by a
-ratio you can tune. **No RBH file is read or modified for this.**
+By default the icon docks under the tracker text some HUD packs draw over the minimap. That text is
+drawn from the top-left corner of the minimap element downwards, so this plugin anchors to the same
+element and drops by an amount you can tune. **No file belonging to that pack is read or modified
+for this.**
 
 ```
 ┌───────────────────────┐
 │ Status:   Wait Botting│
 │ Duration: 00:17:22    │
-│ Rifts:    0R 0,00R/H  │  RBH session panel
+│ Rifts:    0R 0,00R/H  │  tracker text on the minimap
 │ Greater:  0R 0,00R/H  │
 │ Nephalem: 0R 0,00R/H  │
 │                       │
@@ -38,11 +39,11 @@ ratio you can tune. **No RBH file is read or modified for this.**
    minimap area
 ```
 
-The drop is expressed as a number of RBH tracker lines, and the height of a line is measured live
+The drop is expressed as a number of those text lines, and the height of a line is measured live
 rather than assumed, so **the icon keeps its place when you resize the game window**. That detail
-matters: RBH sizes its font to fit the minimap width but stops shrinking at 13.5 pixels, an
-absolute floor, so its panel takes a larger share of the minimap on a small window than on a large
-one. A fixed fraction of the minimap drifts into the panel as soon as the window changes size.
+matters: that text is sized to fit the minimap width but stops shrinking at 13.5 pixels, an
+absolute floor, so it takes a larger share of the minimap on a small window than on a large
+one. A fixed fraction of the minimap drifts into it as soon as the window changes size.
 
 Other anchors: `UnderPortrait`, `LeftOfHealthGlobe`, `RightOfResourceGlobe`, `AboveSkillBar`,
 `UnderMinimapClock`, and `Custom` for free placement by screen ratio.
@@ -52,27 +53,30 @@ Other anchors: `UnderPortrait`, `LeftOfHealthGlobe`, `RightOfResourceGlobe`, `Ab
 1. Copy the `GuiSquare` folder into your TurboHUD `plugins` directory. The plugin is
    self-contained — no other files, no textures.
 
-2. **If you run RBH**, its plugin manager disables everything it does not know about. Add one line
-   to the `Enable_Plugins` list in `plugins/RosbotHelper/Config/Manager_Config.cs`:
+2. **If your HUD pack ships a plugin manager** that disables everything it does not know about,
+   add one line to that manager's enable list:
 
    ```csharp
    "Turbo.Plugins.GuiSquare.FollowerAliveStatusPlugin"
    ```
 
-3. Restart TurboHUD. If the icon overlaps the session panel or floats too low, set
-   `RbhPanelLineCount` to the number of lines in your own session panel, plus one.
+3. Restart TurboHUD. If the icon overlaps that text or floats too low, set
+   `MinimapTextLineCount` to the number of lines you actually see there, plus one.
 
 ## Configuration
 
 Rename `GuiSquare/FollowerAliveStatusCustomizer.txt` to `.cs` to change any setting without editing
-the plugin itself. RBH users must whitelist the customizer too:
+the plugin itself. Managed packs must whitelist the customizer too:
 `"Turbo.Plugins.GuiSquare.FollowerAliveStatusCustomizer"`.
 
 | Option | Default | What it controls |
 | --- | --- | --- |
-| `Position` | `BelowRbhSessionPanel` | Where the icon docks |
-| `RbhPanelLineCount` | `8` | Drop below the minimap top edge, in RBH tracker lines. Resize-proof |
-| `RbhPanelHeightRatio` | `0.46` | Legacy drop as a fraction of minimap height, used only when `RbhPanelLineCount` is `0` |
+| `Position` | `BelowMinimapText` | Where the icon docks |
+| `MinimapTextLineCount` | `11` | Drop below the minimap top edge, in tracker text lines. Resize-proof |
+| `MinimapTextHeightRatio` | `0.46` | Legacy drop as a fraction of minimap height, used only when `MinimapTextLineCount` is `0` |
+| `AutoFontSize` | `true` | Grow the counter past its nominal size until a line clears the floor, the way the text above it does |
+| `CounterFontSize` / `TrackerTextSize` | `7.5` / `8.0` | Nominal sizes, before the floor applies |
+| `MinLineHeight` | `13.5` | That floor, in pixels |
 | `IconStyle` | `Skull` | `Skull`, `Dot` or `Portrait` |
 | `IconSizeRatio` | `0.024` | Icon size, as a fraction of screen height |
 | `ShowCounter` / `CounterOnRight` | `true` / `true` | Death counter, beside or inside the icon |
@@ -88,6 +92,15 @@ the plugin itself. RBH users must whitelist the customizer too:
 
 Colours are plain TurboHUD brushes and can be replaced: `AliveBrush`, `DeadBrush`,
 `NoFollowerBrush`, `IconDetailBrush`.
+
+### The counter follows the window
+
+The death counter is sized by the same rule the tracker text above it uses: a nominal size, grown
+past it until a line clears `MinLineHeight` pixels. TurboHUD font sizes scale with the window, so
+at 800x600 the nominal size lands well under that floor while the tracker text keeps growing until
+it clears it -- drawing the counter at a fixed nominal size looks right at 1080p and visibly too
+small at a low resolution. The search only runs after a resize, so it costs nothing per frame.
+`AutoFontSize = false` turns it off and hands `CounterFont` / `CounterDeadFont` back to you.
 
 ### Resetting the counter
 

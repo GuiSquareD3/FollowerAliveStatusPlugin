@@ -2,9 +2,8 @@
 // Example file: rename it to .cs to enable it.
 // It lets you tune FollowerAliveStatusPlugin without editing the plugin itself.
 //
-// NOTE: RBH disables every plugin it does not know about. If you enable this file,
-// ALSO add this line to Enable_Plugins in
-//   plugins/RosbotHelper/Config/Manager_Config.cs
+// NOTE: this HUD install disables every plugin its manager does not know about.
+// If you enable this file, ALSO add it to that manager's enable list:
 //   "Turbo.Plugins.GuiSquare.FollowerAliveStatusCustomizer"
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -26,30 +25,34 @@ namespace Turbo.Plugins.GuiSquare
                 // ---------------------------------------------------------------
                 // 1) Where the icon and counter sit
                 // ---------------------------------------------------------------
-                // BelowRbhSessionPanel -> below the RBH session panel               [default]
+                // BelowMinimapText     -> below the tracker text on the minimap    [default]
                 // UnderPortrait        -> below the hero portrait (top left)
                 // LeftOfHealthGlobe    -> left of the health globe (bottom left)
                 // RightOfResourceGlobe -> right of the resource globe (bottom right)
                 // AboveSkillBar        -> above the skill bar (bottom centre)
                 // UnderMinimapClock    -> below the minimap clock (top right)
                 // Custom               -> free placement via CustomX / CustomY
-                plugin.Position = FollowerStatusIconPosition.BelowRbhSessionPanel;
+                plugin.Position = FollowerStatusIconPosition.BelowMinimapText;
 
                 // How far below the minimap's top edge to sit, expressed as a number of
-                // RBH tracker lines. THIS is the value to adjust if the icon overlaps the
-                // panel or floats too low: count the lines in your own session panel and
-                // add one for breathing room.
+                // tracker text lines. THIS is the value to adjust if the icon overlaps
+                // that text or floats too low: count the lines you actually see, and add
+                // one for breathing room.
                 //
-                // The line height itself is measured live, including RBH's own 13.5px
-                // floor, so the icon keeps its place when the game window is resized.
-                plugin.RbhPanelLineCount = 8;
+                // The line height itself is measured live, including that text's own
+                // 13.5px floor, so the icon keeps its place when the window is resized.
+                //
+                // Default is 11: 7 tracker lines, one for breathing room, then the three
+                // lines of the Greater Rift boss timer. Drop it back to 8 if that timer
+                // is not running.
+                plugin.MinimapTextLineCount = 11;
 
                 // Legacy placement, a plain fraction of the minimap height. Only used when
-                // RbhPanelLineCount is 0, and it does NOT survive a window resize: RBH's
-                // font stops shrinking at 13.5px, so its panel takes a larger share of the
+                // MinimapTextLineCount is 0, and it does NOT survive a window resize:
+                // that text stops shrinking at 13.5px, so it takes a larger share of the
                 // minimap on a small window than on a big one.
-                // plugin.RbhPanelLineCount = 0;
-                // plugin.RbhPanelHeightRatio = 0.46f;
+                // plugin.MinimapTextLineCount = 0;
+                // plugin.MinimapTextHeightRatio = 0.46f;
 
                 // Fine tuning for any position (as a ratio of screen height).
                 // plugin.OffsetX = 0.00f;
@@ -72,7 +75,9 @@ namespace Turbo.Plugins.GuiSquare
                 plugin.ShowCounter = true;       // show the death counter
                 plugin.CounterOnRight = true;    // false = number drawn inside the icon
                 plugin.HideCounterWhenZero = false;
-                plugin.CounterPrefix = "×"; // reads as "x2" rather than a lone "2"; "" for the bare number
+                // Escaped so this file stays pure ASCII: U+00D7 is the multiplication
+                // sign, so the counter reads as "x2" rather than a lone "2".
+                plugin.CounterPrefix = "\u00D7"; // "" for the bare number
                 plugin.BlinkWhenDead = true;
                 plugin.HideWhenNoFollower = false; // true = draw nothing when no follower is hired
 
@@ -80,6 +85,22 @@ namespace Turbo.Plugins.GuiSquare
                 // plugin.AliveBrush      = Hud.Render.CreateBrush(230, 40, 200, 70, 0);
                 // plugin.DeadBrush       = Hud.Render.CreateBrush(240, 225, 35, 35, 0);
                 // plugin.IconDetailBrush = Hud.Render.CreateBrush(255, 10, 10, 12, 0);
+
+                // The counter follows the same sizing rule as the text over the minimap:
+                // a nominal size, grown past it until a line clears MinLineHeight.
+                // TurboHUD font sizes scale with the window, so at 800x600 the nominal
+                // size lands well under that floor and the tracker text keeps growing
+                // until it clears it. Drawing the counter at a fixed nominal size would
+                // therefore look right at 1080p and too small at 800x600.
+                // plugin.AutoFontSize = true;
+                // plugin.CounterFontSize = 7.5f;   // nominal, before the floor applies
+                // plugin.TrackerTextSize = 8.0f;   // nominal size of the text above
+                // plugin.MinLineHeight = 13.5f;    // that text's absolute floor, in px
+
+                // Turning it off draws the counter exactly as built here, at a fixed size.
+                // plugin.AutoFontSize = false;
+                // plugin.CounterFont     = Hud.Render.CreateFont("tahoma", 7.5f, 255, 240, 240, 240, true, false, 190, 0, 0, 0, true);
+                // plugin.CounterDeadFont = Hud.Render.CreateFont("tahoma", 7.5f, 255, 255, 105, 105, true, false, 190, 0, 0, 0, true);
 
                 // ---------------------------------------------------------------
                 // 3) Counting
